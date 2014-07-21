@@ -51,7 +51,7 @@ Features
 - Purely-functional query interface. (Not very Pythonic; but then, neither is civilised DB access.)
 - Data access hooks enable simple templates (and correspondingly more-complex views—as it should be).
 - Independence between code structure and database structure (unlike Django and ActiveRecord, for example).
-- Support for Django ORM’s data access protocol (`\_\_getitem\_\_`).
+- Support for Django ORM’s data access protocol (`__getitem__`).
 - Support for named (“server-side”) cursors and query-optimisation hooks.
 - Batch inserts (`COPY FROM`, `COPY TO`) with extensible interface.
 

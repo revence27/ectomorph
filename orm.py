@@ -213,6 +213,7 @@ The keyword args are all optional:
       return 0
 
   def list(self):
+    '''Returns a generator over the rows.'''
     for it in range(self.count()):
       yield self[it]
 

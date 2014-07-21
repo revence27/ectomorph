@@ -22,7 +22,7 @@ Examples
   
     them  = ORM.query('them',
       hooks = {'describe': lambda x, _: '"%s", from \'%s\' by %s' % (x['title'], x['album'], x['artist'])}
-)
+    )
     print them.query
     for it in them.list():
       print ('%2d' % (it['indexcol'], )), it['describe']

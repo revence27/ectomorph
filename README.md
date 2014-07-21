@@ -13,29 +13,29 @@ There is something wrong with too much SQL. (It is “liturgical”; its use sho
 Examples
 --------
 
-  from orm import *
-  from os import getenv
+    from orm import *
+    from os import getenv
+    
+    ORM.connect(dbname = 'postgres', user = 'postgres')
+    for run in range(int(getenv('ORMTIMES', '5'))):
+      print 'Stored Item ID:', ORM.store('them', {'title':'In the Silence', 'artist':'Hillsong United', 'album':'People Just Like Us'})
   
-  ORM.connect(dbname = 'postgres', user = 'postgres')
-  for run in range(int(getenv('ORMTIMES', '5'))):
-    print 'Stored Item ID:', ORM.store('them', {'title':'In the Silence', 'artist':'Hillsong United', 'album':'People Just Like Us'})
-  
-  them  = ORM.query('them',
-    hooks = {'describe': lambda x, _: '"%s", from \'%s\' by %s' % (x['title'], x['album'], x['artist'])}
+    them  = ORM.query('them',
+      hooks = {'describe': lambda x, _: '"%s", from \'%s\' by %s' % (x['title'], x['album'], x['artist'])}
 )
-  print them.query
-  for it in them.list():
-    print ('%2d' % (it['indexcol'], )), it['describe']
+    print them.query
+    for it in them.list():
+      print ('%2d' % (it['indexcol'], )), it['describe']
 
 The above can be executed thus:
 
-  $ env ORMTIMES=1 python test.py
+    $ env ORMTIMES=1 python test.py
 
 It prints this:
 
-  Item ID: 1
-  SELECT * FROM them
-   1 "In the Silence", from 'People Just Like Us' by Hillsong United
+    Item ID: 1
+    SELECT * FROM them
+     1 "In the Silence", from 'People Just Like Us' by Hillsong United
 
 Features
 --------

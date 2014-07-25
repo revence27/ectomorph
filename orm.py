@@ -588,7 +588,7 @@ batch:
       col   = self.ensure_column(curz, tbl, col, dval)
       self.postgres.commit()
       elval = curz.mogrify('%s', (dval, ))
-      if len(ans) > 0:
+      if hasattr(ans, '__iter__') and len(ans) > 0:
         dat[col]  = elval
       else:
         if btc and hasattr(dval, '__getitem__'):

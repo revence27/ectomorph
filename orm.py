@@ -213,6 +213,7 @@ The keyword args are all optional:
       return 0
 
   def list(self):
+    '''Returns a generator over the rows.'''
     for it in range(self.count()):
       yield self[it]
 
@@ -587,7 +588,7 @@ batch:
       col   = self.ensure_column(curz, tbl, col, dval)
       self.postgres.commit()
       elval = curz.mogrify('%s', (dval, ))
-      if len(ans) > 0:
+      if hasattr(ans, '__iter__') and len(ans) > 0:
         dat[col]  = elval
       else:
         if btc and hasattr(dval, '__getitem__'):

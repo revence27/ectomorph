@@ -17,12 +17,6 @@ class Row:
     self.kwargs = kwargs
     self.value  = value
 
-  def get(self, key):
-    try:
-      return self[key]
-    except Exception:
-      pass
-
   def set_row(self, r):
     '''Imperative style is bad style. But this is Python, anyway.'''
     self.value  = r
@@ -152,13 +146,13 @@ The keyword args are all optional:
     '''Assemble into query the parts that express conditions (WHERE).'''
     return ORM.assemble_conditions(conds)
 
-  def specialise(self, conds, **kwargs):
-    '''Returns a different copy of this query, with the arguments treated as now conditions.'''
+  def specialise(self, djconds, **kwargs):
+    '''Returns a different copy of this query, with the arguments treated as new conditions.'''
     nova          = copy.copy(self)
     nova.djconds  = copy.copy(self.djconds)
-    for k in conds:
-      nova.djconds[k] = conds[k]
-    nova.kwargs   = kwargs
+    nova.kwargs   = copy.copy(self.kwargs)
+    nova.djconds.update(djconds)
+    nova.kwargs.update(kwargs)
     return nova
 
   def filter(self, **kwargs):
@@ -428,7 +422,6 @@ class ORM:
   @classmethod
   def connect(self, *args, **kwargs):
     self.postgres = psycopg2.connect(*args, **kwargs)
-    self.postgres.set_client_encoding('UTF8')
 
   @classmethod
   def alter_condition(self, conds, ok):
@@ -582,22 +575,35 @@ batch:
     if not dat: return None
     vals    = []
     curz    = self.postgres.cursor()
+    btc     = kwargs.get('batch', None)
     tbl     = self.ensure_table(tn)
-    ans     = dat.pop('indexcol', None)
+    ans     = dat.pop('indexcol', [])
+    multid  = False
+    # if type(ans) in [type(x) for x in [set(), []]]:
+    if hasattr(ans, '__iter__'):
+      multid  = True
     cols    = dat.keys()
     for col in cols:
       dval  = dat[col]
       col   = self.ensure_column(curz, tbl, col, dval)
       self.postgres.commit()
-      elval = curz.mogrify(u'%s', (dval.encode('utf-8') if type(dval) == type(u'') else dval, )).decode('utf-8')
-      dat[col]  = elval
-      vals.append(elval)
-    if not ans:
-      qry = (u'INSERT INTO %s (%s) VALUES (%s) RETURNING indexcol;' % (tbl, u', '.join(cols), u', '.join(vals)))
-      curz.execute(qry)
-      ans = curz.fetchone()[0]
+      elval = curz.mogrify('%s', (dval, ))
+      if hasattr(ans, '__iter__') and len(ans) > 0:
+        dat[col]  = elval
+      else:
+        if btc and hasattr(dval, '__getitem__'):
+          elval = dval.replace('\t', '\\t').replace('\n', '\\n')
+        vals.append(elval)
+    if vals:
+      if btc:
+        ans = btc.append(tbl, cols, vals)
+      else:
+        qry = (u'INSERT INTO %s (%s) VALUES (%s) RETURNING indexcol;' % (tbl, ', '.join(cols), ', '.join(vals)))
+        curz.execute(qry)
+        ans = curz.fetchone()[0]
     else:
-      bzt = (u'UPDATE %s SET %s WHERE indexcol = %s;' % (tbl, u', '.join([u'%s = %s' % (k, dat[k]) for k in dat]), curz.mogrify(u'%s', (ans, ))))
+      bzt = (u'UPDATE %s SET %s WHERE indexcol %s %s;' % (tbl, ', '.join(['%s = %s' % (k, dat[k]) for k in dat]), 'IN' if multid else '=', ('(%s)' % ', '.join(ans)) if multid else curz.mogrify('%s', (ans, ))))
+      # stderr.write('>>>\t%s\r\n' % (bzt, ))
       curz.execute(bzt)
     self.postgres.commit()
     curz.close()

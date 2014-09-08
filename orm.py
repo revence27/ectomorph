@@ -412,34 +412,6 @@ The keyword args are all optional:
   def __unicode__(self):
     return self.query
 
-class ORMBatch:
-  '''Meant to facilitate batch operations.'''
-  def __init__(self, pg):
-    self.tables   = {}
-    self.postgres = pg
-
-  def append(self, tn, cols, vals, sepstr = '\t', nullstr = '\\N'):
-    if not (tn in self.tables):
-      self.tables[tn] = (cols, StringIO())
-      return self.append(tn, cols, vals)
-    _, sio  = self.tables[tn]
-    sio.write(sepstr.join(vals))
-    sio.write('\n')
-    return self
-
-  def store(self):
-    curz  = self.postgres.cursor()
-    for tbl in self.tables:
-      cols, sio = self.tables[tbl]
-      sio.seek(0)
-      curz.copy_from(sio, tbl, columns = cols)
-    curz.close()
-    self.postgres.commit()
-    return self
-    
-  def run(self):
-    return self.store()
-
 class ORM:
   'The base class for all models.'
   created   = False
@@ -594,12 +566,6 @@ If `vl` is a hash, then 'type' is the SQL type, 'default' the SQL default, 'null
     return ctyp, dval
 
   @classmethod
-  def batch(self):
-    '''Creates a ORMBatch object to facilitate batch-inserts.'''
-    btc = ORMBatch(self.postgres)
-    return btc
-
-  @classmethod
   def store(self, tn, dat, **kwargs):
     '''Stores in the table `tn` (creating it, if necessary) the hash provided in `dat`. The hash keyword item `indexcol` is treated as the ID of the object.
 Keywords:
@@ -611,18 +577,34 @@ Keywords:
     tbl     = self.ensure_table(tn)
     ans     = dat.pop('indexcol', None)
     cols    = dat.keys()
+    escer   = kwargs.pop('escapist', {})
     for col in cols:
       dval  = dat[col]
       col   = self.ensure_column(curz, tbl, col, dval)
       self.postgres.commit()
-      elval = curz.mogrify('%s', (dval, ))
+      elval = None
+      try:
+        him   = escer[type(dval)]
+        elval = him(curz, '%s', (dval, ))
+      except KeyError:
+        elval = curz.mogrify('%s', (dval, ))
       vals.append(elval)
     if not ans:
       qry = (u'INSERT INTO %s (%s) VALUES (%s) RETURNING indexcol;' % (tbl, ', '.join(cols), ', '.join(vals)))
       curz.execute(qry)
       ans = curz.fetchone()[0]
     else:
-      bzt = (u'UPDATE %s SET %s WHERE indexcol = %s;' % (tbl, ', '.join(['%s = %s' % (k, dat[k]) for k in dat]), curz.mogrify('%s', (ans, ))))
+      dem = []
+      for k in dat:
+        dval  = dat[k]
+        elval = None
+        try:
+          him   = escer[type(dval)]
+          elval = him(curz, '%s', (dval, ))
+        except KeyError:
+          elval = curz.mogrify('%s', (dval, ))
+        dem.append('%s = %s' % (k, elval))
+      bzt = (u'UPDATE %s SET %s WHERE indexcol = %s;' % (tbl, ', '.join(dem), curz.mogrify('%s', (ans, ))))
       curz.execute(bzt)
     self.postgres.commit()
     curz.close()

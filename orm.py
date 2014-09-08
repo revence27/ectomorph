@@ -604,43 +604,25 @@ If `vl` is a hash, then 'type' is the SQL type, 'default' the SQL default, 'null
     '''Stores in the table `tn` (creating it, if necessary) the hash provided in `dat`. The hash keyword item `indexcol` is treated as the ID of the object.
 Keywords:
   This integer is the ID of the object. Provide it, if you have it.
-batch:
-  The hash of the keywords that turn on and control batch activity.
 '''
-    if type(dat) in [type(x) for x in [set(), []]]:
-      return [self.store(tn, cv, **kwargs) for cv in dat]
     if not dat: return None
     vals    = []
     curz    = self.postgres.cursor()
-    btc     = kwargs.get('batch', None)
     tbl     = self.ensure_table(tn)
-    ans     = dat.pop('indexcol', [])
-    multid  = False
-    # if type(ans) in [type(x) for x in [set(), []]]:
-    if hasattr(ans, '__iter__'):
-      multid  = True
+    ans     = dat.pop('indexcol', None)
     cols    = dat.keys()
     for col in cols:
       dval  = dat[col]
       col   = self.ensure_column(curz, tbl, col, dval)
       self.postgres.commit()
       elval = curz.mogrify('%s', (dval, ))
-      if hasattr(ans, '__iter__') and len(ans) > 0:
-        dat[col]  = elval
-      else:
-        if btc and hasattr(dval, '__getitem__'):
-          elval = dval.replace('\t', '\\t').replace('\n', '\\n')
-        vals.append(elval)
-    if vals:
-      if btc:
-        ans = btc.append(tbl, cols, vals)
-      else:
-        qry = (u'INSERT INTO %s (%s) VALUES (%s) RETURNING indexcol;' % (tbl, ', '.join(cols), ', '.join(vals)))
-        curz.execute(qry)
-        ans = curz.fetchone()[0]
+      vals.append(elval)
+    if not ans:
+      qry = (u'INSERT INTO %s (%s) VALUES (%s) RETURNING indexcol;' % (tbl, ', '.join(cols), ', '.join(vals)))
+      curz.execute(qry)
+      ans = curz.fetchone()[0]
     else:
-      bzt = (u'UPDATE %s SET %s WHERE indexcol %s %s;' % (tbl, ', '.join(['%s = %s' % (k, dat[k]) for k in dat]), 'IN' if multid else '=', ('(%s)' % ', '.join(ans)) if multid else curz.mogrify('%s', (ans, ))))
-      # stderr.write('>>>\t%s\r\n' % (bzt, ))
+      bzt = (u'UPDATE %s SET %s WHERE indexcol = %s;' % (tbl, ', '.join(['%s = %s' % (k, dat[k]) for k in dat]), curz.mogrify('%s', (ans, ))))
       curz.execute(bzt)
     self.postgres.commit()
     curz.close()

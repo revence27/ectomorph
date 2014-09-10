@@ -104,7 +104,7 @@ The keyword args are all optional:
 '''
     self.postgres = pg
     self.djconds  = djconds
-    self.kwargs   = kwargs
+    self.kwargs   = copy.copy(kwargs)
     self.tn       = tn
     self.cursor   = None
 
@@ -458,10 +458,11 @@ class ORM:
     return '%s%s' % (' LIMIT %d' % (limits, ) if limits else '', ' OFFSET %d' % (offset, ) if offset else '')
 
   @classmethod
-  def assemble_conditions(self, conds):
+  def assemble_conditions(self, cnds):
     '''Assemble into query the conditions (WHERE).
 If 'Invert Query' is supplied as one of the condition keys, the entire set of conditions will be negated.'''
     curz  = self.postgres.cursor()
+    conds = copy.copy(cnds)
     ans   = []
     neg   = False
     if type(conds) in [type(''), type(u'')]:
@@ -566,12 +567,14 @@ If `vl` is a hash, then 'type' is the SQL type, 'default' the SQL default, 'null
     return ctyp, dval
 
   @classmethod
-  def store(self, tn, dat, **kwargs):
+  def store(self, tn, d, **kw):
     '''Stores in the table `tn` (creating it, if necessary) the hash provided in `dat`. The hash keyword item `indexcol` is treated as the ID of the object.
 Keywords:
   This integer is the ID of the object. Provide it, if you have it.
 '''
-    if not dat: return None
+    if not d: return None
+    kwargs  = copy.copy(kw)
+    dat     = copy.copy(d)
     vals    = []
     curz    = self.postgres.cursor()
     tbl     = self.ensure_table(tn)

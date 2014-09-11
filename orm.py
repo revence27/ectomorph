@@ -260,7 +260,11 @@ The keyword args are all optional:
         if retries:
           self.postgres.commit()
           self.migrate(self.kwargs.get('migrations', []), e)
-          return self.execute(False)
+          try:
+            return self.execute(False)
+          except psycopg2.ProgrammingError, e:
+            self.postgres.commit()
+            raise e
         raise e
       self.cols               = self.__set_names()
     # stderr.write('>>>\t%s\r\n' % (self.query, ))

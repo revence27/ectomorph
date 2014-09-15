@@ -427,6 +427,12 @@ class ORM:
     self.postgres = psycopg2.connect(*args, **kwargs)
 
   @classmethod
+  def migrate(self, curz, tn, migs):
+    '''Runs the migrations supplied.'''
+    for mig in migs:
+      ORM.ensure_column(curz, tn, *mig)
+
+  @classmethod
   def alter_condition(self, conds, ok):
     '''A way to plug new DB layout into the old code's expectation.'''
     if not ok in conds:
@@ -571,6 +577,11 @@ If `vl` is a hash, then 'type' is the SQL type, 'default' the SQL default, 'null
     return ctyp, dval
 
   @classmethod
+  def delete(self, tn, i):
+    curz    = self.postgres.cursor()
+    curz.execute('DELETE FROM %s WHERE indexcol = %s' % (tn, i))
+
+  @classmethod
   def store(self, tn, d, **kw):
     '''Stores in the table `tn` (creating it, if necessary) the hash provided in `dat`. The hash keyword item `indexcol` is treated as the ID of the object.
 Keywords:
@@ -585,6 +596,8 @@ Keywords:
     ans     = dat.pop('indexcol', None)
     cols    = dat.keys()
     escer   = kwargs.pop('escapist', {})
+    self.migrate(curz, tn, kwargs.get('migrations', []))
+    self.postgres.commit()
     for col in cols:
       dval  = dat[col]
       col   = self.ensure_column(curz, tbl, col, dval)

@@ -521,6 +521,18 @@ If 'Invert Query' is supplied as one of the condition keys, the entire set of co
     return us
 
   @classmethod
+  def connection(self):
+    return self.postgres
+
+  @classmethod
+  def cursor(self):
+    return self.connection().cursor()
+
+  @classmethod
+  def raw_query(self, q):
+    return self.cursor().execute(q)
+
+  @classmethod
   def query(self, tn, djconds = {}, **kwargs):
     '''SELECT * FROM pre_table
   ORM.query('pre_table')

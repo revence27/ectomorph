@@ -522,14 +522,17 @@ If 'Invert Query' is supplied as one of the condition keys, the entire set of co
 
   @classmethod
   def connection(self):
+    'Returns the current connection.'
     return self.postgres
 
   @classmethod
   def cursor(self):
+    'Returns a cursor for the current connection.'
     return self.connection().cursor()
 
   @classmethod
   def raw_query(self, q):
+    'Runs this query against a new cursor of the current connection, returning the raw result.'
     return self.cursor().execute(q)
 
   @classmethod

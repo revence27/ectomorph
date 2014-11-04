@@ -584,7 +584,10 @@ Keywords:
     tbl     = self.ensure_table(tn)
     ans     = dat.pop('indexcol', None)
     cols    = dat.keys()
-    escer   = kwargs.pop('escapist', {})
+    escer   = {
+      type(lambda x: x) : lambda c, s, f: f[0](c, s)
+    }
+    escer.update(kwargs.pop('escapist', {}))
     for col in cols:
       dval  = dat[col]
       col   = self.ensure_column(curz, tbl, col, dval)
@@ -595,7 +598,7 @@ Keywords:
         elval = him(curz, '%s', (dval, ))
       except KeyError:
         elval = curz.mogrify('%s', (dval, ))
-      vals.append(elval)
+      vals.append(elval.decode('utf-8'))
     if not ans:
       qry = (u'INSERT INTO %s (%s) VALUES (%s) RETURNING indexcol;' % (tbl, ', '.join(cols), ', '.join(vals)))
       curz.execute(qry)
@@ -610,7 +613,7 @@ Keywords:
           elval = him(curz, '%s', (dval, ))
         except KeyError:
           elval = curz.mogrify('%s', (dval, ))
-        dem.append('%s = %s' % (k, elval))
+        dem.append(u'%s = %s' % (k, elval.decode('utf-8')))
       bzt = (u'UPDATE %s SET %s WHERE indexcol = %s;' % (tbl, ', '.join(dem), curz.mogrify('%s', (ans, ))))
       curz.execute(bzt)
     self.postgres.commit()
